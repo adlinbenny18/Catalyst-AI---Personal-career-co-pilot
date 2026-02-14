@@ -66,11 +66,15 @@ const App: React.FC = () => {
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [userInput, setUserInput] = useState('');
   const [initialAnalysis, setInitialAnalysis] = useState<InitialAnalysis | null>(null);
+  
+  // Sidebar Toggles
   const [showSkills, setShowSkills] = useState(true);
+  const [showSoftSkills, setShowSoftSkills] = useState(true);
   const [showProjects, setShowProjects] = useState(true);
   const [showPathways, setShowPathways] = useState(true);
-  const [copilotAdvice, setCopilotAdvice] = useState<string | null>(null);
+  const [showStrategic, setShowStrategic] = useState(true);
   
+  const [copilotAdvice, setCopilotAdvice] = useState<string | null>(null);
   const [roadmap, setRoadmap] = useState<RoadmapData | null>(null);
   const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({});
   
@@ -273,14 +277,15 @@ const App: React.FC = () => {
                 </div>
               )}
 
+              {/* Proficiency Matrix (Technical) */}
               <div className="space-y-3">
                 <button onClick={() => setShowSkills(!showSkills)} className="w-full flex justify-between text-[10px] font-bold text-gray-500 uppercase tracking-widest hover:text-white transition-colors">
-                  <span className="flex items-center"><Cpu className="w-3.5 h-3.5 mr-2" /> Proficiency Matrix</span>
+                  <span className="flex items-center"><Cpu className="w-3.5 h-3.5 mr-2" /> Technical Matrix</span>
                   {showSkills ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>}
                 </button>
                 {showSkills && initialAnalysis && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                    {initialAnalysis.skills.map((skill, i) => {
+                    {initialAnalysis.skills.filter(s => s.type === 'technical').map((skill, i) => {
                       const isMet = skill.status === 'met';
                       const baseProficiency = isMet ? 80 : 20;
                       const proficiency = Math.min(100, baseProficiency + (progressFactor * 60));
@@ -308,6 +313,47 @@ const App: React.FC = () => {
                 )}
               </div>
 
+              {/* Soft Skills Section */}
+              <div className="space-y-3">
+                <button onClick={() => setShowSoftSkills(!showSoftSkills)} className="w-full flex justify-between text-[10px] font-bold text-gray-500 uppercase tracking-widest hover:text-white transition-colors">
+                  <span className="flex items-center"><Heart className="w-3.5 h-3.5 mr-2" /> Soft Skills</span>
+                  {showSoftSkills ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>}
+                </button>
+                {showSoftSkills && initialAnalysis && (
+                  <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-2">
+                    {initialAnalysis.skills.filter(s => s.type === 'soft').map((skill, i) => (
+                      <span key={i} className={`text-[10px] px-2 py-1 rounded-md border flex items-center space-x-1 ${skill.status === 'met' ? 'bg-pink-500/5 border-pink-500/20 text-pink-400' : 'bg-[#0E1117] border-[#30363D] text-gray-500'}`}>
+                         {skill.status === 'met' ? <CheckCircle2 className="w-2.5 h-2.5"/> : <Circle className="w-2.5 h-2.5 opacity-20"/>}
+                         <span>{skill.name}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Project Initiatives Section */}
+              <div className="space-y-3">
+                <button onClick={() => setShowProjects(!showProjects)} className="w-full flex justify-between text-[10px] font-bold text-gray-500 uppercase tracking-widest hover:text-white transition-colors">
+                  <span className="flex items-center"><Briefcase className="w-3.5 h-3.5 mr-2" /> Project Ideas</span>
+                  {showProjects ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>}
+                </button>
+                {showProjects && initialAnalysis && (
+                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                    {initialAnalysis.project_suggestions.map((project, i) => (
+                      <div key={i} className="bg-[#0E1117] p-3 rounded-xl border border-[#30363D] hover:border-indigo-500/50 transition-colors group">
+                        <div className="flex items-start space-x-2">
+                          <div className="mt-0.5 p-1 bg-indigo-500/10 rounded">
+                            <Zap className="w-3 h-3 text-indigo-400" />
+                          </div>
+                          <p className="text-[10px] text-gray-300 leading-relaxed font-medium">{project}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Trajectory Mapping (Job Pathways) */}
               <div className="space-y-3">
                 <button onClick={() => setShowPathways(!showPathways)} className="w-full flex justify-between text-[10px] font-bold text-gray-500 uppercase tracking-widest hover:text-white transition-colors">
                   <span className="flex items-center"><Map className="w-3.5 h-3.5 mr-2" /> Trajectory Mapping</span>
@@ -322,6 +368,23 @@ const App: React.FC = () => {
                       </div>
                     ))}
                   </div>
+                )}
+              </div>
+
+              {/* Strategic Suggestions Section */}
+              <div className="space-y-3 pb-6">
+                <button onClick={() => setShowStrategic(!showStrategic)} className="w-full flex justify-between text-[10px] font-bold text-gray-500 uppercase tracking-widest hover:text-white transition-colors">
+                  <span className="flex items-center"><Lightbulb className="w-3.5 h-3.5 mr-2" /> Recommendations</span>
+                  {showStrategic ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>}
+                </button>
+                {showStrategic && initialAnalysis && (
+                  <ul className="space-y-2 px-1 animate-in fade-in slide-in-from-top-2">
+                    {initialAnalysis.other_suggestions.map((s, i) => (
+                      <li key={i} className="text-[10px] text-gray-400 leading-tight flex items-start">
+                        <span className="text-yellow-500 mr-2 shrink-0">•</span> {s}
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
 
@@ -546,7 +609,7 @@ const App: React.FC = () => {
 
       {step !== AppStep.ROADMAP && (
         <footer className="py-8 border-t border-[#30363D]/50 text-center">
-          <p className="text-gray-700 text-[10px] font-black uppercase tracking-[0.5em]">Catalyst AI Growth Intelligence v6.0</p>
+          <p className="text-gray-700 text-[10px] font-black uppercase tracking-[0.5em]">Catalyst AI Growth Intelligence v6.1</p>
         </footer>
       )}
     </div>
