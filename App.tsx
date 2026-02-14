@@ -29,7 +29,10 @@ import {
   Briefcase,
   ExternalLink,
   Plus,
-  Map
+  Map,
+  Users,
+  BookOpen,
+  MessageSquare
 } from 'lucide-react';
 import { AppStep, ChatMessage, Task, RoadmapData, InitialAnalysis, SkillItem, RoadmapPhase } from './types';
 import { extractTextFromPdf } from './services/pdfService';
@@ -42,6 +45,7 @@ const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(AppStep.SETUP);
   const [loading, setLoading] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [syncingTaskId, setSyncingTaskId] = useState<string | null>(null);
 
   const [userName, setUserName] = useState('');
   const [resumeFile, setResumeFile] = useState<File | null>(null);
@@ -49,6 +53,7 @@ const App: React.FC = () => {
   const [githubUsername, setGithubUsername] = useState('');
   const [githubDetails, setGithubDetails] = useState('');
   const [targetPosition, setTargetPosition] = useState('');
+  const [copilotMode, setCopilotMode] = useState<'networking' | 'upskill'>('upskill');
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [questions, setQuestions] = useState<string[]>([]);
@@ -58,11 +63,13 @@ const App: React.FC = () => {
   const [showSkills, setShowSkills] = useState(true);
   const [showProjects, setShowProjects] = useState(true);
   const [showPathways, setShowPathways] = useState(true);
+  const [copilotAdvice, setCopilotAdvice] = useState<string | null>(null);
   
   const [roadmap, setRoadmap] = useState<RoadmapData | null>(null);
   const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({});
   
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const COPILOT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby1Oz9IJ7lAIABO_DGoDetPhy2QhAjlCX6EgdUO_an4handXY8GgFZQuLekDboBPEH4uQ/exec";
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -99,7 +106,19 @@ const App: React.FC = () => {
       setRoadmap(plan);
       setSidebarOpen(true);
       setStep(AppStep.ROADMAP);
+      fetchCopilotAdvice("Generate a starting strategy for my 30-day offensive.");
     } catch (e) { alert("Roadmap generation failed."); } finally { setLoading(null); }
+  };
+
+  const fetchCopilotAdvice = async (query: string) => {
+    const contextPrompt = `${query} My target is ${targetPosition}. I am currently in ${copilotMode} mode.`;
+    try {
+      const response = await fetch(`${COPILOT_SCRIPT_URL}?q=${encodeURIComponent(contextPrompt)}`);
+      const advice = await response.text();
+      setCopilotAdvice(advice);
+    } catch (error) {
+      console.error("Copilot advice fetch failed:", error);
+    }
   };
 
   const handleSendResponse = async () => {
@@ -128,29 +147,37 @@ const App: React.FC = () => {
     setRoadmap(null);
     setCompletedTasks({});
     setInitialAnalysis(null);
+    setCopilotAdvice(null);
   };
 
-  // --- Google Calendar Utilities ---
-  const generateGCalLink = (title: string, details: string) => {
-    const baseUrl = 'https://www.google.com/calendar/render?action=TEMPLATE';
-    const text = encodeURIComponent(title);
-    const desc = encodeURIComponent(details);
-    const now = new Date();
-    const start = now.toISOString().replace(/-|:|\.\d\d\d/g, "");
-    now.setHours(now.getHours() + 1);
-    const end = now.toISOString().replace(/-|:|\.\d\d\d/g, "");
-    return `${baseUrl}&text=${text}&details=${desc}&dates=${start}/${end}`;
+  // --- Career Copilot Integration (Google Calendar) ---
+  const syncToCopilotCalendar = async (title: string, details: string, id: string) => {
+    setSyncingTaskId(id);
+    const schedulingQuery = `Schedule following task to my Google Calendar: ${title}. Details: ${details}`;
+    try {
+      // We use a simple fetch to the user's GAS endpoint
+      const response = await fetch(`${COPILOT_SCRIPT_URL}?q=${encodeURIComponent(schedulingQuery)}`);
+      if (response.ok) {
+        const result = await response.text();
+        console.log("Calendar Sync Result:", result);
+        // Fallback to opening template if script just returns advice instead of performing action
+        const templateLink = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}`;
+        window.open(templateLink, '_blank');
+      }
+    } catch (error) {
+      console.error("Copilot scheduling failed:", error);
+    } finally {
+      setSyncingTaskId(null);
+    }
   };
 
-  const syncTaskToCalendar = (taskText: string, phaseTitle: string) => {
-    const url = generateGCalLink(`[Catalyst] ${taskText}`, `Roadmap Phase: ${phaseTitle}\nGoal: Mastering ${targetPosition} requirements.`);
-    window.open(url, '_blank');
+  const handleSyncPhase = (phase: RoadmapPhase, pIdx: number) => {
+    const details = `Tasks: ${phase.tasks.join(', ')}`;
+    syncToCopilotCalendar(`[Catalyst Phase] ${phase.focus}`, details, `phase-${pIdx}`);
   };
 
-  const syncPhaseToCalendar = (phase: RoadmapPhase) => {
-    const details = `Tasks for this focus area:\n${phase.tasks.map(t => `- ${t}`).join('\n')}`;
-    const url = generateGCalLink(`[Catalyst Phase] ${phase.focus}`, details);
-    window.open(url, '_blank');
+  const handleSyncTask = (taskText: string, phaseTitle: string, id: string) => {
+    syncToCopilotCalendar(`[Catalyst Task] ${taskText}`, `Part of focus: ${phaseTitle}`, id);
   };
 
   // --- Dynamic Progress & Skill Profiling ---
@@ -201,6 +228,24 @@ const App: React.FC = () => {
                   <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wide">{targetPosition}</p>
                 </div>
 
+                {/* Copilot Mode Selection */}
+                <div className="grid grid-cols-2 gap-2 bg-[#0E1117] p-1 rounded-xl border border-[#30363D]">
+                  <button 
+                    onClick={() => setCopilotMode('upskill')}
+                    className={`flex items-center justify-center space-x-2 py-2 px-3 rounded-lg text-[10px] font-bold uppercase transition-all ${copilotMode === 'upskill' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+                  >
+                    <BookOpen className="w-3 h-3" />
+                    <span>Upskill</span>
+                  </button>
+                  <button 
+                    onClick={() => setCopilotMode('networking')}
+                    className={`flex items-center justify-center space-x-2 py-2 px-3 rounded-lg text-[10px] font-bold uppercase transition-all ${copilotMode === 'networking' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+                  >
+                    <Users className="w-3 h-3" />
+                    <span>Network</span>
+                  </button>
+                </div>
+
                 {/* Overall Task Progress */}
                 <div className="bg-[#0E1117] p-5 rounded-2xl border border-[#30363D] shadow-inner relative overflow-hidden group">
                   <div className="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
@@ -218,18 +263,21 @@ const App: React.FC = () => {
                     />
                   </div>
                 </div>
-
-                {/* Role Alignment Metric */}
-                <div className="bg-[#0E1117] p-4 rounded-2xl border border-[#30363D]">
-                  <div className="flex justify-between items-end mb-2">
-                    <span className="text-[10px] font-bold text-gray-500 uppercase">Dynamic Alignment</span>
-                    <span className="text-sm font-black text-indigo-400">{Math.round(matchPercent)}%</span>
-                  </div>
-                  <div className="w-full bg-[#30363D] h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-indigo-400 h-full transition-all duration-1000" style={{ width: `${matchPercent}%` }} />
-                  </div>
-                </div>
               </div>
+
+              {/* Career Copilot Advice Section */}
+              {copilotAdvice && (
+                <div className="bg-indigo-600/10 border border-indigo-500/30 p-4 rounded-2xl relative group overflow-hidden">
+                  <div className="absolute top-0 right-0 p-2 opacity-20 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => fetchCopilotAdvice("Give me fresh advice.")}>
+                    <RotateCcw className="w-3 h-3 text-indigo-400" />
+                  </div>
+                  <div className="flex items-center space-x-2 mb-2">
+                    <MessageSquare className="w-3 h-3 text-indigo-400" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Copilot Insight</span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-gray-300 italic">"{copilotAdvice}"</p>
+                </div>
+              )}
 
               {/* Skill Matrix */}
               <div className="space-y-3">
@@ -239,40 +287,27 @@ const App: React.FC = () => {
                 </button>
                 {showSkills && initialAnalysis && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                    {/* Technical Skills */}
                     <div>
                       <h5 className="text-[9px] text-gray-500 uppercase font-black mb-2 flex items-center"><Circle className="w-1.5 h-1.5 mr-1 text-blue-500 fill-blue-500" /> Technical Gaps</h5>
                       <div className="flex flex-wrap gap-2">
                         {initialAnalysis.skills.filter(s => s.type === 'technical').map((skill, i) => {
-                          const isAcquired = skill.status === 'missing' && progressFactor >= 0.85;
+                          const isAcquired = skill.status === 'met' || progressFactor >= 0.85;
                           const isAcquiring = skill.status === 'missing' && progressFactor > 0 && progressFactor < 0.85;
-                          const badgeClass = skill.status === 'met' || isAcquired ? 'bg-green-500/5 border-green-500/20 text-green-400' : isAcquiring ? 'bg-indigo-500/5 border-indigo-500/20 text-indigo-300' : 'bg-[#0E1117] border-[#30363D] text-gray-500';
+                          const badgeClass = isAcquired ? 'bg-green-500/5 border-green-500/20 text-green-400' : isAcquiring ? 'bg-indigo-500/5 border-indigo-500/20 text-indigo-300' : 'bg-[#0E1117] border-[#30363D] text-gray-500';
                           return (
                             <span key={i} className={`text-[10px] px-2 py-1 rounded-md border flex items-center space-x-1 transition-all duration-700 ${badgeClass}`}>
-                              { (skill.status === 'met' || isAcquired) ? <CheckCircle2 className="w-2.5 h-2.5"/> : isAcquiring ? <Loader2 className="w-2.5 h-2.5 animate-spin"/> : null }
+                              { isAcquired ? <CheckCircle2 className="w-2.5 h-2.5"/> : isAcquiring ? <Loader2 className="w-2.5 h-2.5 animate-spin"/> : null }
                               <span>{skill.name}</span>
                             </span>
                           );
                         })}
                       </div>
                     </div>
-                    {/* Soft Skills */}
-                    <div>
-                      <h5 className="text-[9px] text-gray-500 uppercase font-black mb-2 flex items-center"><Circle className="w-1.5 h-1.5 mr-1 text-pink-500 fill-pink-500" /> Soft Skills</h5>
-                      <div className="flex flex-wrap gap-2">
-                        {initialAnalysis.skills.filter(s => s.type === 'soft').map((skill, i) => (
-                          <span key={i} className={`text-[10px] px-2 py-1 rounded-md border flex items-center space-x-1 ${skill.status === 'met' ? 'bg-pink-500/5 border-pink-500/20 text-pink-400' : 'bg-[#0E1117] border-[#30363D] text-gray-500'}`}>
-                             {skill.status === 'met' && <Heart className="w-2.5 h-2.5 fill-current"/>}
-                             <span>{skill.name}</span>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Job Pathways Section */}
+              {/* Career Pathways */}
               <div className="space-y-3">
                 <button onClick={() => setShowPathways(!showPathways)} className="w-full flex justify-between text-[10px] font-bold text-gray-500 uppercase tracking-widest hover:text-white transition-colors">
                   <span className="flex items-center"><Map className="w-3.5 h-3.5 mr-2" /> Career Pathways</span>
@@ -284,28 +319,6 @@ const App: React.FC = () => {
                       <div key={i} className="flex items-center space-x-3 p-3 bg-[#0E1117] border border-[#30363D] rounded-xl hover:border-indigo-500/40 transition-all group">
                         <TrendingUp className="w-3.5 h-3.5 text-indigo-500 group-hover:scale-110 transition-transform" />
                         <span className="text-[11px] font-semibold text-gray-300">{path}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Project Suggestions */}
-              <div className="space-y-3">
-                <button onClick={() => setShowProjects(!showProjects)} className="w-full flex justify-between text-[10px] font-bold text-gray-500 uppercase tracking-widest hover:text-white transition-colors">
-                  <span className="flex items-center"><Briefcase className="w-3.5 h-3.5 mr-2" /> Project Initiatives</span>
-                  {showProjects ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>}
-                </button>
-                {showProjects && initialAnalysis && (
-                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                    {initialAnalysis.project_suggestions.map((project, i) => (
-                      <div key={i} className="bg-[#0E1117] p-3 rounded-xl border border-[#30363D] hover:border-indigo-500/50 transition-colors group">
-                        <div className="flex items-start space-x-2">
-                          <div className="mt-0.5 p-1 bg-indigo-500/10 rounded">
-                            <Zap className="w-3 h-3 text-indigo-400" />
-                          </div>
-                          <p className="text-[10px] text-gray-300 leading-relaxed font-medium">{project}</p>
-                        </div>
                       </div>
                     ))}
                   </div>
@@ -413,6 +426,8 @@ const App: React.FC = () => {
                     const phaseTasks = phase.tasks;
                     const phaseCompleted = phaseTasks.filter((_, tidx) => completedTasks[`${idx}-${tidx}`]).length;
                     const phaseProgress = (phaseCompleted / phaseTasks.length) * 100;
+                    const isSyncingPhase = syncingTaskId === `phase-${idx}`;
+
                     return (
                       <div key={idx} className="group">
                         <div className="flex items-center space-x-6 mb-6">
@@ -422,11 +437,12 @@ const App: React.FC = () => {
                               <div className="flex items-center space-x-3">
                                 <h4 className="text-2xl font-black text-white uppercase group-hover:text-indigo-400 transition-colors">{phase.focus}</h4>
                                 <button 
-                                  onClick={() => syncPhaseToCalendar(phase)}
-                                  title="Sync whole phase to Google Calendar"
-                                  className="p-2 bg-[#161B22] border border-[#30363D] rounded-xl hover:bg-indigo-500 hover:border-indigo-500 transition-all group/cal shadow-lg"
+                                  onClick={() => handleSyncPhase(phase, idx)}
+                                  disabled={isSyncingPhase}
+                                  title="Schedule phase to Career Calendar"
+                                  className="p-2 bg-[#161B22] border border-[#30363D] rounded-xl hover:bg-indigo-500 hover:border-indigo-500 transition-all group/cal shadow-lg disabled:opacity-50"
                                 >
-                                  <Plus className="w-4 h-4 text-gray-400 group-hover/cal:text-white" />
+                                  {isSyncingPhase ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Plus className="w-4 h-4 text-gray-400 group-hover/cal:text-white" />}
                                 </button>
                               </div>
                               <span className="text-xs font-black text-indigo-500 tracking-widest">{Math.round(phaseProgress)}%</span>
@@ -440,6 +456,8 @@ const App: React.FC = () => {
                           {phase.tasks.map((task, tidx) => {
                             const taskId = `${idx}-${tidx}`;
                             const isDone = completedTasks[taskId];
+                            const isSyncingTask = syncingTaskId === taskId;
+
                             return (
                               <div key={tidx} className="relative group/task">
                                 <div 
@@ -452,11 +470,12 @@ const App: React.FC = () => {
                                   <span className={`text-sm font-semibold leading-relaxed flex-1 ${isDone ? 'text-gray-500 line-through decoration-indigo-500/30' : 'text-gray-200'}`}>{task}</span>
                                 </div>
                                 <button 
-                                  onClick={(e) => { e.stopPropagation(); syncTaskToCalendar(task, phase.focus); }}
-                                  className="absolute top-4 right-4 p-2 bg-[#0E1117]/80 rounded-xl border border-[#30363D] opacity-0 group-hover/task:opacity-100 transition-all hover:bg-indigo-600 hover:border-indigo-500"
-                                  title="Add to Google Calendar"
+                                  onClick={(e) => { e.stopPropagation(); handleSyncTask(task, phase.focus, taskId); }}
+                                  disabled={isSyncingTask}
+                                  className="absolute top-4 right-4 p-2 bg-[#0E1117]/80 rounded-xl border border-[#30363D] opacity-0 group-hover/task:opacity-100 transition-all hover:bg-indigo-600 hover:border-indigo-500 disabled:opacity-50"
+                                  title="Schedule to Career Calendar"
                                 >
-                                  <Calendar className="w-3.5 h-3.5 text-indigo-400 group-hover/task:text-white" />
+                                  {isSyncingTask ? <Loader2 className="w-3.5 h-3.5 text-white animate-spin" /> : <Calendar className="w-3.5 h-3.5 text-indigo-400 group-hover/task:text-white" />}
                                 </button>
                               </div>
                             );
@@ -474,7 +493,7 @@ const App: React.FC = () => {
 
       {step !== AppStep.ROADMAP && (
         <footer className="py-8 border-t border-[#30363D]/50 text-center">
-          <p className="text-gray-700 text-[10px] font-black uppercase tracking-[0.5em]">Catalyst AI Integration v4.3</p>
+          <p className="text-gray-700 text-[10px] font-black uppercase tracking-[0.5em]">Catalyst AI Career Intelligence v5.0</p>
         </footer>
       )}
     </div>
