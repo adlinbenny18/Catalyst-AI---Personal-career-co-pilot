@@ -2,7 +2,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { InitialAnalysis, RoadmapData } from "../types";
 
-// Fix: Strictly follow @google/genai initialization guidelines using process.env.API_KEY directly
 const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export async function analyzeProfile(
@@ -88,7 +87,18 @@ export async function generateRoadmap(
     Initial Data: ${initialAnalysis}
     GitHub: ${githubData}
     
-    The roadmap must address the 'missing' skills identified.`,
+    The roadmap must address the 'missing' skills identified.
+    For each phase (representing a day or small group of days), you MUST include:
+    
+    1. A mix of task types: Documentation, Practice problems, Mini projects, and General.
+    2. Exactly 2-3 high-quality DOCUMENTATION resources for the topic of that phase.
+    
+    📌 ACCEPTABLE DOCUMENTATION SOURCES:
+    Only use: Official framework/language docs (React.dev, Python.org, MDN Web Docs, FastAPI Docs, Nodejs.org, etc.), W3C, Docker Docs, or official university pages.
+    PROHIBITED: Medium, Random Blogs, StackOverflow, Unverified tutorials.
+    
+    Match documentation difficulty with the candidate's proficiency identified in the transcript.
+    Ensure all URLs are real, valid, and start with https://.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -103,10 +113,32 @@ export async function generateRoadmap(
                 focus: { type: Type.STRING },
                 tasks: {
                   type: Type.ARRAY,
-                  items: { type: Type.STRING }
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      text: { type: Type.STRING },
+                      type: { type: Type.STRING, enum: ['documentation', 'practice', 'project', 'general'] }
+                    },
+                    required: ["text", "type"]
+                  }
+                },
+                documentation: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      title: { type: Type.STRING },
+                      url: { type: Type.STRING },
+                      difficulty: { type: Type.STRING, enum: ['Beginner', 'Intermediate', 'Advanced'] },
+                      type: { type: Type.STRING },
+                      relevanceScore: { type: Type.NUMBER },
+                      estimatedReadTime: { type: Type.STRING }
+                    },
+                    required: ["title", "url", "difficulty", "type", "relevanceScore", "estimatedReadTime"]
+                  }
                 }
               },
-              required: ["day", "focus", "tasks"]
+              required: ["day", "focus", "tasks", "documentation"]
             }
           }
         },

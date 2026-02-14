@@ -32,9 +32,15 @@ import {
   Map,
   Users,
   BookOpen,
-  MessageSquare
+  MessageSquare,
+  Bookmark,
+  Code2,
+  FlaskConical,
+  BarChart3,
+  Clock,
+  ShieldCheck
 } from 'lucide-react';
-import { AppStep, ChatMessage, Task, RoadmapData, InitialAnalysis, SkillItem, RoadmapPhase } from './types';
+import { AppStep, ChatMessage, Task, RoadmapData, InitialAnalysis, SkillItem, RoadmapPhase, RoadmapTask, DocumentationLink } from './types';
 import { extractTextFromPdf } from './services/pdfService';
 import { fetchGithubData } from './services/githubService';
 import { analyzeProfile, generateRoadmap } from './services/geminiService';
@@ -99,7 +105,7 @@ const App: React.FC = () => {
   };
 
   const finalizeRoadmap = async (history: ChatMessage[]) => {
-    setLoading("Constructing 30 day vibe-check plan");
+    setLoading("Constructing 30 day growth offensive");
     try {
       const transcript = history.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
       const plan = await generateRoadmap(transcript, targetPosition, JSON.stringify(initialAnalysis), githubDetails);
@@ -150,17 +156,14 @@ const App: React.FC = () => {
     setCopilotAdvice(null);
   };
 
-  // --- Career Copilot Integration (Google Calendar) ---
   const syncToCopilotCalendar = async (title: string, details: string, id: string) => {
     setSyncingTaskId(id);
     const schedulingQuery = `Schedule following task to my Google Calendar: ${title}. Details: ${details}`;
     try {
-      // We use a simple fetch to the user's GAS endpoint
       const response = await fetch(`${COPILOT_SCRIPT_URL}?q=${encodeURIComponent(schedulingQuery)}`);
       if (response.ok) {
         const result = await response.text();
         console.log("Calendar Sync Result:", result);
-        // Fallback to opening template if script just returns advice instead of performing action
         const templateLink = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}`;
         window.open(templateLink, '_blank');
       }
@@ -172,7 +175,7 @@ const App: React.FC = () => {
   };
 
   const handleSyncPhase = (phase: RoadmapPhase, pIdx: number) => {
-    const details = `Tasks: ${phase.tasks.join(', ')}`;
+    const details = `Focus: ${phase.focus}. Tasks: ${phase.tasks.map(t => t.text).join(', ')}`;
     syncToCopilotCalendar(`[Catalyst Phase] ${phase.focus}`, details, `phase-${pIdx}`);
   };
 
@@ -180,15 +183,28 @@ const App: React.FC = () => {
     syncToCopilotCalendar(`[Catalyst Task] ${taskText}`, `Part of focus: ${phaseTitle}`, id);
   };
 
-  // --- Dynamic Progress & Skill Profiling ---
   const totalTasksCount = roadmap?.thirty_day_plan.reduce((acc, p) => acc + p.tasks.length, 0) || 0;
   const completedCount = Object.values(completedTasks).filter(Boolean).length;
   const progressFactor = totalTasksCount > 0 ? (completedCount / totalTasksCount) : 0;
   const progressPercent = progressFactor * 100;
-  
-  const metSkills = initialAnalysis?.skills.filter(s => s.status === 'met').length || 0;
-  const totalSkillsCount = initialAnalysis?.skills.length || 1;
-  const matchPercent = Math.min(95, ((metSkills / totalSkillsCount) * 100) + (progressFactor * 30));
+
+  const getTaskIcon = (type: string) => {
+    switch (type) {
+      case 'documentation': return <Bookmark className="w-4 h-4" />;
+      case 'practice': return <Code2 className="w-4 h-4" />;
+      case 'project': return <FlaskConical className="w-4 h-4" />;
+      default: return <Circle className="w-4 h-4" />;
+    }
+  };
+
+  const getTaskColor = (type: string) => {
+    switch (type) {
+      case 'documentation': return 'text-blue-400 bg-blue-500/10 border-blue-500/20';
+      case 'practice': return 'text-amber-400 bg-amber-500/10 border-amber-500/20';
+      case 'project': return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+      default: return 'text-gray-400 bg-gray-500/10 border-gray-500/20';
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0E1117] text-[#E6EDF3]">
@@ -202,7 +218,7 @@ const App: React.FC = () => {
             </div>
             <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white">Catalyst AI</h1>
           </div>
-          <p className="text-gray-500 text-[10px] font-bold uppercase tracking-[0.5em] mt-2">Career Intelligence Layer</p>
+          <p className="text-gray-500 text-[10px] font-bold uppercase tracking-[0.5em] mt-2">Growth Intelligence Layer</p>
         </header>
       )}
 
@@ -221,51 +237,29 @@ const App: React.FC = () => {
                 <button onClick={() => setSidebarOpen(false)} className="p-1 lg:hidden hover:bg-[#30363D] rounded"><X className="w-5 h-5"/></button>
               </div>
 
-              {/* Greeting & Metrics */}
-              <div className="py-4 border-b border-[#30363D]/50 space-y-6">
+              <div className="py-4 border-b border-[#30363D]/50 space-y-4">
                 <div>
                   <h2 className="text-xl font-bold text-white leading-tight mb-1">{userName}</h2>
                   <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wide">{targetPosition}</p>
                 </div>
 
-                {/* Copilot Mode Selection */}
-                <div className="grid grid-cols-2 gap-2 bg-[#0E1117] p-1 rounded-xl border border-[#30363D]">
-                  <button 
-                    onClick={() => setCopilotMode('upskill')}
-                    className={`flex items-center justify-center space-x-2 py-2 px-3 rounded-lg text-[10px] font-bold uppercase transition-all ${copilotMode === 'upskill' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
-                  >
-                    <BookOpen className="w-3 h-3" />
-                    <span>Upskill</span>
-                  </button>
-                  <button 
-                    onClick={() => setCopilotMode('networking')}
-                    className={`flex items-center justify-center space-x-2 py-2 px-3 rounded-lg text-[10px] font-bold uppercase transition-all ${copilotMode === 'networking' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
-                  >
-                    <Users className="w-3 h-3" />
-                    <span>Network</span>
-                  </button>
-                </div>
-
-                {/* Overall Task Progress */}
-                <div className="bg-[#0E1117] p-5 rounded-2xl border border-[#30363D] shadow-inner relative overflow-hidden group">
-                  <div className="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                  <div className="flex justify-between items-end mb-4">
-                    <p className="text-4xl font-black text-white">{Math.round(progressPercent)}%</p>
-                    <div className="text-right">
-                      <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">{completedCount}/{totalTasksCount}</p>
-                      <p className="text-[10px] text-gray-500 uppercase">Tasks Completed</p>
-                    </div>
+                <div className="bg-[#0E1117] p-5 rounded-2xl border border-[#30363D] shadow-inner">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-300 flex items-center">
+                      <BarChart3 className="w-3 h-3 mr-2" /> Growth Index
+                    </span>
+                    <span className="text-xs font-bold text-white">{Math.round(progressPercent)}%</span>
                   </div>
-                  <div className="w-full bg-[#30363D] h-2.5 rounded-full overflow-hidden">
+                  <div className="w-full bg-[#1C2128] h-3 rounded-full overflow-hidden border border-[#30363D]">
                     <div 
-                      className="bg-indigo-500 h-full transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(99,102,241,0.8)]" 
+                      className="bg-gradient-to-r from-indigo-600 to-indigo-400 h-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(99,102,241,0.5)]" 
                       style={{ width: `${progressPercent}%` }}
                     />
                   </div>
+                  <p className="text-[9px] text-gray-500 mt-2 font-medium tracking-tight">Phase momentum tracking active.</p>
                 </div>
               </div>
 
-              {/* Career Copilot Advice Section */}
               {copilotAdvice && (
                 <div className="bg-indigo-600/10 border border-indigo-500/30 p-4 rounded-2xl relative group overflow-hidden">
                   <div className="absolute top-0 right-0 p-2 opacity-20 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => fetchCopilotAdvice("Give me fresh advice.")}>
@@ -273,44 +267,50 @@ const App: React.FC = () => {
                   </div>
                   <div className="flex items-center space-x-2 mb-2">
                     <MessageSquare className="w-3 h-3 text-indigo-400" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Copilot Insight</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Strategy Insight</span>
                   </div>
                   <p className="text-[11px] leading-relaxed text-gray-300 italic">"{copilotAdvice}"</p>
                 </div>
               )}
 
-              {/* Skill Matrix */}
               <div className="space-y-3">
                 <button onClick={() => setShowSkills(!showSkills)} className="w-full flex justify-between text-[10px] font-bold text-gray-500 uppercase tracking-widest hover:text-white transition-colors">
-                  <span className="flex items-center"><Cpu className="w-3.5 h-3.5 mr-2" /> Skill Matrix</span>
+                  <span className="flex items-center"><Cpu className="w-3.5 h-3.5 mr-2" /> Proficiency Matrix</span>
                   {showSkills ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>}
                 </button>
                 {showSkills && initialAnalysis && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                    <div>
-                      <h5 className="text-[9px] text-gray-500 uppercase font-black mb-2 flex items-center"><Circle className="w-1.5 h-1.5 mr-1 text-blue-500 fill-blue-500" /> Technical Gaps</h5>
-                      <div className="flex flex-wrap gap-2">
-                        {initialAnalysis.skills.filter(s => s.type === 'technical').map((skill, i) => {
-                          const isAcquired = skill.status === 'met' || progressFactor >= 0.85;
-                          const isAcquiring = skill.status === 'missing' && progressFactor > 0 && progressFactor < 0.85;
-                          const badgeClass = isAcquired ? 'bg-green-500/5 border-green-500/20 text-green-400' : isAcquiring ? 'bg-indigo-500/5 border-indigo-500/20 text-indigo-300' : 'bg-[#0E1117] border-[#30363D] text-gray-500';
-                          return (
-                            <span key={i} className={`text-[10px] px-2 py-1 rounded-md border flex items-center space-x-1 transition-all duration-700 ${badgeClass}`}>
-                              { isAcquired ? <CheckCircle2 className="w-2.5 h-2.5"/> : isAcquiring ? <Loader2 className="w-2.5 h-2.5 animate-spin"/> : null }
-                              <span>{skill.name}</span>
+                    {initialAnalysis.skills.map((skill, i) => {
+                      const isMet = skill.status === 'met';
+                      const baseProficiency = isMet ? 80 : 20;
+                      const proficiency = Math.min(100, baseProficiency + (progressFactor * 60));
+                      const isMastered = proficiency >= 90;
+
+                      return (
+                        <div key={i} className="space-y-1.5">
+                          <div className="flex justify-between items-center px-1">
+                            <span className="text-[10px] font-bold text-gray-300 uppercase flex items-center">
+                              <Circle className={`w-1.5 h-1.5 mr-2 ${isMastered ? 'text-green-500 fill-green-500' : 'text-indigo-400'}`} />
+                              {skill.name}
                             </span>
-                          );
-                        })}
-                      </div>
-                    </div>
+                            <span className="text-[9px] font-black text-gray-500 uppercase">{Math.round(proficiency)}%</span>
+                          </div>
+                          <div className="w-full bg-[#0E1117] h-1.5 rounded-full overflow-hidden border border-[#30363D]">
+                            <div 
+                              className={`h-full transition-all duration-1000 ${isMastered ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-indigo-500'}`} 
+                              style={{ width: `${proficiency}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
 
-              {/* Career Pathways */}
               <div className="space-y-3">
                 <button onClick={() => setShowPathways(!showPathways)} className="w-full flex justify-between text-[10px] font-bold text-gray-500 uppercase tracking-widest hover:text-white transition-colors">
-                  <span className="flex items-center"><Map className="w-3.5 h-3.5 mr-2" /> Career Pathways</span>
+                  <span className="flex items-center"><Map className="w-3.5 h-3.5 mr-2" /> Trajectory Mapping</span>
                   {showPathways ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>}
                 </button>
                 {showPathways && initialAnalysis && (
@@ -325,7 +325,6 @@ const App: React.FC = () => {
                 )}
               </div>
 
-              {/* Reset Action */}
               <div className="pt-4 border-t border-[#30363D]/50 mt-auto">
                 <button onClick={resetAll} className="w-full py-3 text-[10px] font-black uppercase text-red-400/50 hover:text-red-400 flex justify-center items-center group transition-colors">
                   <RotateCcw className="w-3.5 h-3.5 mr-2 group-hover:rotate-180 transition-transform duration-500" /> Reset Session
@@ -344,12 +343,11 @@ const App: React.FC = () => {
 
           <div className={`mx-auto ${step === AppStep.ROADMAP ? 'max-w-4xl p-8 lg:p-12' : 'max-w-3xl px-6'}`}>
             
-            {/* SETUP */}
             {step === AppStep.SETUP && (
               <div className="max-w-xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
                 <div className="text-center">
-                  <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">Calibration Hub</h2>
-                  <p className="text-gray-500 text-sm">Synchronize your professional data for real-time synthesis.</p>
+                  <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">Strategy Calibration Hub</h2>
+                  <p className="text-gray-500 text-sm">Upload documentation to synchronize your professional trajectory.</p>
                 </div>
                 <div className="bg-[#161B22] p-8 rounded-3xl border border-[#30363D] space-y-6 shadow-2xl relative">
                   <div className="space-y-4">
@@ -358,23 +356,22 @@ const App: React.FC = () => {
                       <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="Full Name" className="bg-[#0E1117] border border-[#30363D] rounded-2xl px-5 py-4 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"/>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FileUploader label="Resume" onFileSelect={setResumeFile} selectedFile={resumeFile} />
-                      <FileUploader label="LinkedIn PDF" onFileSelect={setLinkedinFile} selectedFile={linkedinFile} />
+                      <FileUploader label="Professional Resume" onFileSelect={setResumeFile} selectedFile={resumeFile} />
+                      <FileUploader label="LinkedIn Data (PDF)" onFileSelect={setLinkedinFile} selectedFile={linkedinFile} />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <input type="text" value={githubUsername} onChange={(e) => setGithubUsername(e.target.value)} placeholder="GitHub User" className="bg-[#0E1117] border border-[#30363D] rounded-2xl px-5 py-4 text-white focus:border-indigo-500 outline-none"/>
+                      <input type="text" value={githubUsername} onChange={(e) => setGithubUsername(e.target.value)} placeholder="GitHub Username" className="bg-[#0E1117] border border-[#30363D] rounded-2xl px-5 py-4 text-white focus:border-indigo-500 outline-none"/>
                       <input type="text" value={targetPosition} onChange={(e) => setTargetPosition(e.target.value)} placeholder="Target Role" className="bg-[#0E1117] border border-[#30363D] rounded-2xl px-5 py-4 text-white focus:border-indigo-500 outline-none"/>
                     </div>
                   </div>
                   <button onClick={handleInitialize} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-5 rounded-2xl flex items-center justify-center space-x-2 transition-all uppercase tracking-widest italic shadow-lg shadow-indigo-600/20 active:scale-[0.98]">
-                    <span>Activate Catalyst</span>
+                    <span>Initiate Catalyst Sync</span>
                     <ChevronRight className="w-5 h-5"/>
                   </button>
                 </div>
               </div>
             )}
 
-            {/* INTERVIEW */}
             {step === AppStep.INTERVIEW && (
               <div className="flex flex-col h-[78vh] animate-in fade-in">
                 <div className="flex items-center justify-between mb-6 bg-indigo-500/5 border border-indigo-500/20 p-5 rounded-3xl backdrop-blur-sm">
@@ -405,7 +402,6 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {/* ROADMAP */}
             {step === AppStep.ROADMAP && roadmap && (
               <div className="space-y-10 animate-in fade-in slide-in-from-right-8 duration-700 pb-20">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-[#30363D]/50">
@@ -413,7 +409,7 @@ const App: React.FC = () => {
                     <h3 className="text-4xl font-black text-white uppercase italic tracking-tighter flex items-center">
                       <Calendar className="w-10 h-10 mr-4 text-indigo-500" /> Growth Offensive
                     </h3>
-                    <p className="text-gray-400">A hyper-focused 30-day offensive roadmap for <span className="text-white font-bold">{userName}</span>.</p>
+                    <p className="text-gray-400">A structured 30-day tactical roadmap for <span className="text-white font-bold">{userName}</span>.</p>
                   </div>
                   <div className="bg-[#161B22] px-5 py-3 rounded-2xl border border-[#30363D] flex items-center space-x-3">
                     <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-lg shadow-green-500/50" />
@@ -421,7 +417,7 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="space-y-12">
+                <div className="space-y-16">
                   {roadmap.thirty_day_plan.map((phase, idx) => {
                     const phaseTasks = phase.tasks;
                     const phaseCompleted = phaseTasks.filter((_, tidx) => completedTasks[`${idx}-${tidx}`]).length;
@@ -439,7 +435,7 @@ const App: React.FC = () => {
                                 <button 
                                   onClick={() => handleSyncPhase(phase, idx)}
                                   disabled={isSyncingPhase}
-                                  title="Schedule phase to Career Calendar"
+                                  title="Sync phase to calendar"
                                   className="p-2 bg-[#161B22] border border-[#30363D] rounded-xl hover:bg-indigo-500 hover:border-indigo-500 transition-all group/cal shadow-lg disabled:opacity-50"
                                 >
                                   {isSyncingPhase ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Plus className="w-4 h-4 text-gray-400 group-hover/cal:text-white" />}
@@ -452,34 +448,91 @@ const App: React.FC = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-4 pl-8 border-l-2 border-indigo-500/10">
-                          {phase.tasks.map((task, tidx) => {
-                            const taskId = `${idx}-${tidx}`;
-                            const isDone = completedTasks[taskId];
-                            const isSyncingTask = syncingTaskId === taskId;
 
-                            return (
-                              <div key={tidx} className="relative group/task">
-                                <div 
-                                  onClick={() => setCompletedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }))} 
-                                  className={`flex items-start space-x-4 p-5 rounded-3xl cursor-pointer border transition-all h-full ${isDone ? 'bg-indigo-500/5 border-indigo-500/30 opacity-70' : 'bg-[#161B22] border-[#30363D] hover:border-indigo-500/50 hover:bg-[#1C2128]'}`}
+                        {/* Phase Content: Documentation & Tasks */}
+                        <div className="ml-4 pl-8 border-l-2 border-indigo-500/10 space-y-8">
+                          
+                          {/* Official Documentation Section */}
+                          <div className="space-y-4">
+                            <div className="flex items-center space-x-2">
+                              <ShieldCheck className="w-4 h-4 text-indigo-400" />
+                              <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400/80">Verified Documentation & Resources</h5>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {phase.documentation.map((doc, docIdx) => (
+                                <a 
+                                  key={docIdx} 
+                                  href={doc.url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="bg-[#161B22] border border-[#30363D] rounded-2xl p-4 hover:border-indigo-500/50 hover:bg-[#1C2128] transition-all group/doc flex flex-col justify-between"
                                 >
-                                  <div className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 border-2 transition-all ${isDone ? 'bg-indigo-500 border-indigo-500 scale-110' : 'border-[#30363D]'}`}>
-                                    {isDone && <CheckCircle2 className="w-4 h-4 text-white"/>}
+                                  <div>
+                                    <div className="flex justify-between items-start mb-2">
+                                      <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border border-indigo-500/20 text-indigo-300 uppercase`}>{doc.difficulty}</span>
+                                      <ExternalLink className="w-3 h-3 text-gray-500 group-hover/doc:text-indigo-400 transition-colors" />
+                                    </div>
+                                    <h6 className="text-xs font-bold text-gray-100 mb-2 line-clamp-2">{doc.title}</h6>
+                                    <p className="text-[9px] text-gray-500 font-medium mb-4">{doc.type}</p>
                                   </div>
-                                  <span className={`text-sm font-semibold leading-relaxed flex-1 ${isDone ? 'text-gray-500 line-through decoration-indigo-500/30' : 'text-gray-200'}`}>{task}</span>
-                                </div>
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); handleSyncTask(task, phase.focus, taskId); }}
-                                  disabled={isSyncingTask}
-                                  className="absolute top-4 right-4 p-2 bg-[#0E1117]/80 rounded-xl border border-[#30363D] opacity-0 group-hover/task:opacity-100 transition-all hover:bg-indigo-600 hover:border-indigo-500 disabled:opacity-50"
-                                  title="Schedule to Career Calendar"
-                                >
-                                  {isSyncingTask ? <Loader2 className="w-3.5 h-3.5 text-white animate-spin" /> : <Calendar className="w-3.5 h-3.5 text-indigo-400 group-hover/task:text-white" />}
-                                </button>
-                              </div>
-                            );
-                          })}
+                                  
+                                  <div className="flex items-center justify-between pt-3 border-t border-[#30363D]">
+                                    <div className="flex items-center space-x-2 text-[9px] text-gray-400">
+                                      <Clock className="w-3 h-3" />
+                                      <span>{doc.estimatedReadTime}</span>
+                                    </div>
+                                    <div className="flex items-center space-x-1">
+                                      <Zap className="w-3 h-3 text-amber-400" />
+                                      <span className="text-[9px] font-bold text-amber-400">{doc.relevanceScore}/10</span>
+                                    </div>
+                                  </div>
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Actionable Tasks */}
+                          <div className="space-y-4">
+                            <div className="flex items-center space-x-2">
+                              <Zap className="w-4 h-4 text-indigo-400" />
+                              <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400/80">Growth Objectives</h5>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {phase.tasks.map((task, tidx) => {
+                                const taskId = `${idx}-${tidx}`;
+                                const isDone = completedTasks[taskId];
+                                const isSyncingTask = syncingTaskId === taskId;
+
+                                return (
+                                  <div key={tidx} className="relative group/task">
+                                    <div 
+                                      onClick={() => setCompletedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }))} 
+                                      className={`flex items-start space-x-4 p-5 rounded-3xl cursor-pointer border transition-all h-full ${isDone ? 'bg-indigo-500/5 border-indigo-500/30 opacity-70' : 'bg-[#161B22] border-[#30363D] hover:border-indigo-500/50 hover:bg-[#1C2128]'}`}
+                                    >
+                                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 border-2 transition-all ${isDone ? 'bg-indigo-500 border-indigo-500 scale-110' : 'bg-[#0E1117] border-[#30363D]'}`}>
+                                        {isDone ? <CheckCircle2 className="w-4 h-4 text-white"/> : <div className={getTaskColor(task.type)}>{getTaskIcon(task.type)}</div>}
+                                      </div>
+                                      <div className="flex-1 space-y-1">
+                                        <div className="flex items-center space-x-2">
+                                          <span className={`text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded border ${getTaskColor(task.type)}`}>{task.type}</span>
+                                        </div>
+                                        <span className={`text-sm font-semibold leading-relaxed flex-1 ${isDone ? 'text-gray-500 line-through decoration-indigo-500/30' : 'text-gray-200'}`}>{task.text}</span>
+                                      </div>
+                                    </div>
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); handleSyncTask(task.text, phase.focus, taskId); }}
+                                      disabled={isSyncingTask}
+                                      className="absolute top-4 right-4 p-2 bg-[#0E1117]/80 rounded-xl border border-[#30363D] opacity-0 group-hover/task:opacity-100 transition-all hover:bg-indigo-600 hover:border-indigo-500 disabled:opacity-50"
+                                      title="Schedule to calendar"
+                                    >
+                                      {isSyncingTask ? <Loader2 className="w-3.5 h-3.5 text-white animate-spin" /> : <Calendar className="w-3.5 h-3.5 text-indigo-400 group-hover/task:text-white" />}
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
                         </div>
                       </div>
                     );
@@ -493,7 +546,7 @@ const App: React.FC = () => {
 
       {step !== AppStep.ROADMAP && (
         <footer className="py-8 border-t border-[#30363D]/50 text-center">
-          <p className="text-gray-700 text-[10px] font-black uppercase tracking-[0.5em]">Catalyst AI Career Intelligence v5.0</p>
+          <p className="text-gray-700 text-[10px] font-black uppercase tracking-[0.5em]">Catalyst AI Growth Intelligence v6.0</p>
         </footer>
       )}
     </div>

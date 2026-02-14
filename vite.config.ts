@@ -16,7 +16,8 @@ export default defineConfig(({ mode }) => {
       },
       resolve: {
         alias: {
-          '@': path.resolve(__dirname, '.'),
+          // Fix: Use path.resolve('.') which defaults to the current working directory, avoiding TypeScript issues with process.cwd() in some environments.
+          '@': path.resolve('.'),
         }
       }
     };

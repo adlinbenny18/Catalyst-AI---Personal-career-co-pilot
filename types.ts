@@ -16,10 +16,25 @@ export interface Task {
   completed: boolean;
 }
 
+export interface RoadmapTask {
+  text: string;
+  type: 'documentation' | 'practice' | 'project' | 'general';
+}
+
+export interface DocumentationLink {
+  title: string;
+  url: string;
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  type: string;
+  relevanceScore: number;
+  estimatedReadTime: string;
+}
+
 export interface RoadmapPhase {
   day: string;
   focus: string;
-  tasks: string[];
+  tasks: RoadmapTask[];
+  documentation: DocumentationLink[];
 }
 
 export interface RoadmapData {
