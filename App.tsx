@@ -109,14 +109,14 @@ const App: React.FC = () => {
   };
 
   const finalizeRoadmap = async (history: ChatMessage[]) => {
-    setLoading("Constructing 30 day growth offensive");
+    setLoading("Constructing 4-week growth offensive");
     try {
       const transcript = history.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
       const plan = await generateRoadmap(transcript, targetPosition, JSON.stringify(initialAnalysis), githubDetails);
       setRoadmap(plan);
       setSidebarOpen(true);
       setStep(AppStep.ROADMAP);
-      fetchCopilotAdvice("Generate a starting strategy for my 30-day offensive.");
+      fetchCopilotAdvice("Generate a starting strategy for my 4-week offensive.");
     } catch (e) { alert("Roadmap generation failed."); } finally { setLoading(null); }
   };
 
@@ -470,9 +470,9 @@ const App: React.FC = () => {
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-[#30363D]/50">
                   <div className="space-y-2">
                     <h3 className="text-4xl font-black text-white uppercase italic tracking-tighter flex items-center">
-                      <Calendar className="w-10 h-10 mr-4 text-indigo-500" /> Growth Offensive
+                      <Calendar className="w-10 h-10 mr-4 text-indigo-500" /> 4-Week Growth Offensive
                     </h3>
-                    <p className="text-gray-400">A structured 30-day tactical roadmap for <span className="text-white font-bold">{userName}</span>.</p>
+                    <p className="text-gray-400">A structured weekly tactical roadmap for <span className="text-white font-bold">{userName}</span>.</p>
                   </div>
                   <div className="bg-[#161B22] px-5 py-3 rounded-2xl border border-[#30363D] flex items-center space-x-3">
                     <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-lg shadow-green-500/50" />
@@ -490,7 +490,7 @@ const App: React.FC = () => {
                     return (
                       <div key={idx} className="group">
                         <div className="flex items-center space-x-6 mb-6">
-                          <div className="w-14 h-14 bg-indigo-500/10 border border-indigo-500/20 rounded-3xl flex items-center justify-center text-xl font-black italic text-indigo-400 shrink-0">P{idx + 1}</div>
+                          <div className="w-14 h-14 bg-indigo-500/10 border border-indigo-500/20 rounded-3xl flex items-center justify-center text-xl font-black italic text-indigo-400 shrink-0">W{idx + 1}</div>
                           <div className="flex-1">
                             <div className="flex justify-between items-end mb-2">
                               <div className="flex items-center space-x-3">
@@ -498,7 +498,7 @@ const App: React.FC = () => {
                                 <button 
                                   onClick={() => handleSyncPhase(phase, idx)}
                                   disabled={isSyncingPhase}
-                                  title="Sync phase to calendar"
+                                  title="Sync week to calendar"
                                   className="p-2 bg-[#161B22] border border-[#30363D] rounded-xl hover:bg-indigo-500 hover:border-indigo-500 transition-all group/cal shadow-lg disabled:opacity-50"
                                 >
                                   {isSyncingPhase ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Plus className="w-4 h-4 text-gray-400 group-hover/cal:text-white" />}
@@ -558,7 +558,7 @@ const App: React.FC = () => {
                           <div className="space-y-4">
                             <div className="flex items-center space-x-2">
                               <Zap className="w-4 h-4 text-indigo-400" />
-                              <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400/80">Growth Objectives</h5>
+                              <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400/80">Weekly Growth Objectives</h5>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {phase.tasks.map((task, tidx) => {
@@ -609,7 +609,7 @@ const App: React.FC = () => {
 
       {step !== AppStep.ROADMAP && (
         <footer className="py-8 border-t border-[#30363D]/50 text-center">
-          <p className="text-gray-700 text-[10px] font-black uppercase tracking-[0.5em]">Catalyst AI Growth Intelligence v6.1</p>
+          <p className="text-gray-700 text-[10px] font-black uppercase tracking-[0.5em]">Catalyst AI Growth Intelligence v6.2</p>
         </footer>
       )}
     </div>

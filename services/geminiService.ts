@@ -88,10 +88,12 @@ export async function generateRoadmap(
     GitHub: ${githubData}
     
     The roadmap must address the 'missing' skills identified.
-    For each phase (representing a day or small group of days), you MUST include:
+    IMPORTANT: You must structure the roadmap into exactly 4 Weekly Phases (Week 1, Week 2, Week 3, Week 4).
+    
+    For each week phase, you MUST include:
     
     1. A mix of task types: Documentation, Practice problems, Mini projects, and General.
-    2. Exactly 2-3 high-quality DOCUMENTATION resources for the topic of that phase.
+    2. Exactly 2-3 high-quality DOCUMENTATION resources for the focus of that week.
     
     📌 ACCEPTABLE DOCUMENTATION SOURCES:
     Only use: Official framework/language docs (React.dev, Python.org, MDN Web Docs, FastAPI Docs, Nodejs.org, etc.), W3C, Docker Docs, or official university pages.
@@ -109,7 +111,7 @@ export async function generateRoadmap(
             items: {
               type: Type.OBJECT,
               properties: {
-                day: { type: Type.STRING },
+                day: { type: Type.STRING, description: "e.g., Week 1" },
                 focus: { type: Type.STRING },
                 tasks: {
                   type: Type.ARRAY,
