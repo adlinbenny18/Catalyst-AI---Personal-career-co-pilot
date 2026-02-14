@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { InitialAnalysis, RoadmapData } from "../types";
+import { InitialAnalysis, RoadmapData, ProgressReportData } from "../types";
 
 const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -145,6 +145,63 @@ export async function generateRoadmap(
           }
         },
         required: ["thirty_day_plan"]
+      }
+    }
+  });
+
+  return JSON.parse(response.text || '{}');
+}
+
+export async function generateReportAnalysis(
+  userName: string,
+  targetRole: string,
+  initialAnalysis: InitialAnalysis,
+  completedCount: number,
+  totalTasks: number,
+  progressPercent: number
+): Promise<Partial<ProgressReportData>> {
+  const ai = getAI();
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: `Generate a professional Progress Report Analysis for ${userName}, aiming for the role of ${targetRole}.
+    The user has completed ${completedCount} out of ${totalTasks} roadmap tasks (${Math.round(progressPercent)}% completion).
+    
+    Initial Skills identified: ${JSON.stringify(initialAnalysis.skills)}
+    Initial Summary: ${initialAnalysis.skill_gap_summary}
+    
+    Please provide:
+    1. growthAnalysis: A professional paragraph (100 words) summarizing consistent progress and current trajectory.
+    2. skillBreakdown: For each skill, provide an 'insight' string explaining why it improved.
+    3. readinessAssessment: A short phrase like "Intermediate -> Job Ready".
+    4. finalRecommendation: One professional next step.
+    5. keyAchievements: 3 bullet points of professional growth highlights.
+    
+    Return JSON only.`,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          growthAnalysis: { type: Type.STRING },
+          skillBreakdown: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                name: { type: Type.STRING },
+                insight: { type: Type.STRING }
+              },
+              required: ["name", "insight"]
+            }
+          },
+          readinessAssessment: { type: Type.STRING },
+          finalRecommendation: { type: Type.STRING },
+          keyAchievements: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING }
+          }
+        },
+        required: ["growthAnalysis", "skillBreakdown", "readinessAssessment", "finalRecommendation", "keyAchievements"]
       }
     }
   });

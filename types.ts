@@ -55,3 +55,29 @@ export interface InitialAnalysis {
   project_suggestions: string[];
   job_pathways: string[];
 }
+
+export interface SkillReportItem {
+  name: string;
+  beforeScore: number;
+  afterScore: number;
+  improvement: number;
+  insight: string;
+}
+
+export interface ProgressReportData {
+  userName: string;
+  targetRole: string;
+  date: string;
+  initialScore: number;
+  finalScore: number;
+  totalImprovement: number;
+  tasksCompleted: number;
+  totalTasks: number;
+  projectsBuilt: string[];
+  consistencyRate: string;
+  growthAnalysis: string;
+  skillBreakdown: SkillReportItem[];
+  keyAchievements: string[];
+  readinessAssessment: string;
+  finalRecommendation: string;
+}

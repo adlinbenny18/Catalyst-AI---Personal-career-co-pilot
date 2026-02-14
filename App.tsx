@@ -38,14 +38,109 @@ import {
   FlaskConical,
   BarChart3,
   Clock,
-  ShieldCheck
+  ShieldCheck,
+  Download,
+  Award,
+  Trophy
 } from 'lucide-react';
-import { AppStep, ChatMessage, Task, RoadmapData, InitialAnalysis, SkillItem, RoadmapPhase, RoadmapTask, DocumentationLink } from './types';
+import { AppStep, ChatMessage, Task, RoadmapData, InitialAnalysis, SkillItem, RoadmapPhase, RoadmapTask, DocumentationLink, ProgressReportData } from './types';
 import { extractTextFromPdf } from './services/pdfService';
 import { fetchGithubData } from './services/githubService';
-import { analyzeProfile, generateRoadmap } from './services/geminiService';
+import { analyzeProfile, generateRoadmap, generateReportAnalysis } from './services/geminiService';
 import LoadingOverlay from './components/LoadingOverlay';
 import FileUploader from './components/FileUploader';
+
+// Component for the printable report
+const ReportTemplate: React.FC<{ data: ProgressReportData }> = ({ data }) => {
+  return (
+    <div id="progress-report-content" className="bg-white text-[#1a1a1a] p-12 max-w-[800px] mx-auto shadow-2xl">
+      <div className="text-center mb-12 border-b-2 border-indigo-600 pb-6">
+        <h1 className="text-3xl font-black uppercase tracking-tight text-indigo-700 mb-2">30-Day Skill Progress Report</h1>
+        <p className="text-gray-500 text-sm font-bold uppercase tracking-widest">Growth Intelligence Layer</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-8 mb-10 bg-indigo-50 p-6 rounded-2xl">
+        <div className="space-y-2">
+          <p className="text-[10px] font-black uppercase text-indigo-500">Candidate Information</p>
+          <h2 className="text-xl font-bold">{data.userName}</h2>
+          <p className="text-sm text-gray-600">{data.targetRole}</p>
+        </div>
+        <div className="text-right space-y-2">
+          <p className="text-[10px] font-black uppercase text-indigo-500">Report Metadata</p>
+          <p className="text-sm font-bold">{data.date}</p>
+          <p className="text-sm text-gray-500">Status: {data.readinessAssessment}</p>
+        </div>
+      </div>
+
+      <section className="mb-10">
+        <h3 className="text-lg font-black uppercase tracking-wider text-gray-900 border-l-4 border-indigo-600 pl-4 mb-6">Overall Performance Summary</h3>
+        <div className="grid grid-cols-4 gap-4">
+          <div className="bg-gray-50 p-4 rounded-xl text-center">
+            <p className="text-[9px] font-black uppercase text-gray-500 mb-1">Initial Score</p>
+            <p className="text-2xl font-black text-gray-800">{data.initialScore}%</p>
+          </div>
+          <div className="bg-indigo-600 p-4 rounded-xl text-center text-white">
+            <p className="text-[9px] font-black uppercase text-indigo-200 mb-1">Final Score</p>
+            <p className="text-2xl font-black">{data.finalScore}%</p>
+          </div>
+          <div className="bg-green-50 p-4 rounded-xl text-center">
+            <p className="text-[9px] font-black uppercase text-green-600 mb-1">Improvement</p>
+            <p className="text-2xl font-black text-green-700">+{data.totalImprovement}%</p>
+          </div>
+          <div className="bg-gray-50 p-4 rounded-xl text-center">
+            <p className="text-[9px] font-black uppercase text-gray-500 mb-1">Consistency</p>
+            <p className="text-lg font-black text-gray-800">{data.consistencyRate}</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="mb-10">
+        <h3 className="text-lg font-black uppercase tracking-wider text-gray-900 border-l-4 border-indigo-600 pl-4 mb-4">AI-Generated Growth Analysis</h3>
+        <p className="text-sm leading-relaxed text-gray-700 bg-gray-50 p-6 rounded-2xl italic">"{data.growthAnalysis}"</p>
+      </section>
+
+      <section className="mb-10">
+        <h3 className="text-lg font-black uppercase tracking-wider text-gray-900 border-l-4 border-indigo-600 pl-4 mb-6">Skill Improvement Breakdown</h3>
+        <div className="space-y-4">
+          {data.skillBreakdown.map((skill, i) => (
+            <div key={i} className="flex items-center space-x-6">
+              <div className="w-1/3 text-xs font-bold text-gray-800">{skill.name}</div>
+              <div className="flex-1">
+                <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+                  <div className="bg-indigo-600 h-full" style={{ width: `${skill.afterScore}%` }} />
+                </div>
+                <p className="text-[9px] text-gray-500 mt-1">{skill.insight}</p>
+              </div>
+              <div className="w-16 text-right text-[10px] font-black text-green-600">+{skill.improvement}%</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="grid grid-cols-2 gap-8">
+        <section>
+          <h3 className="text-sm font-black uppercase tracking-wider text-gray-900 mb-4">Key Achievements</h3>
+          <ul className="space-y-3">
+            {data.keyAchievements.map((ach, i) => (
+              <li key={i} className="flex items-start space-x-2 text-xs text-gray-600">
+                <span className="text-indigo-600 mt-0.5">•</span>
+                <span>{ach}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section className="bg-indigo-900 text-white p-6 rounded-2xl">
+          <h3 className="text-sm font-black uppercase tracking-wider mb-4">Final Recommendation</h3>
+          <p className="text-xs leading-relaxed mb-4 text-indigo-100">{data.finalRecommendation}</p>
+          <div className="text-center pt-4 border-t border-indigo-800">
+            <p className="text-[8px] font-black uppercase tracking-widest text-indigo-300 mb-1">Status</p>
+            <p className="text-sm font-black italic">{data.readinessAssessment}</p>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+};
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(AppStep.SETUP);
@@ -78,6 +173,10 @@ const App: React.FC = () => {
   const [roadmap, setRoadmap] = useState<RoadmapData | null>(null);
   const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({});
   
+  // Report states
+  const [reportData, setReportData] = useState<ProgressReportData | null>(null);
+  const [showReportPreview, setShowReportPreview] = useState(false);
+
   const chatEndRef = useRef<HTMLDivElement>(null);
   const COPILOT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby1Oz9IJ7lAIABO_DGoDetPhy2QhAjlCX6EgdUO_an4handXY8GgFZQuLekDboBPEH4uQ/exec";
 
@@ -109,7 +208,7 @@ const App: React.FC = () => {
   };
 
   const finalizeRoadmap = async (history: ChatMessage[]) => {
-    setLoading("Constructing 4-week growth offensive");
+    setLoading("Creating 4 week vibe-check plan");
     try {
       const transcript = history.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
       const plan = await generateRoadmap(transcript, targetPosition, JSON.stringify(initialAnalysis), githubDetails);
@@ -158,6 +257,8 @@ const App: React.FC = () => {
     setCompletedTasks({});
     setInitialAnalysis(null);
     setCopilotAdvice(null);
+    setReportData(null);
+    setShowReportPreview(false);
   };
 
   const syncToCopilotCalendar = async (title: string, details: string, id: string) => {
@@ -192,6 +293,78 @@ const App: React.FC = () => {
   const progressFactor = totalTasksCount > 0 ? (completedCount / totalTasksCount) : 0;
   const progressPercent = progressFactor * 100;
 
+  const handleGenerateReport = async () => {
+    if (!initialAnalysis || !roadmap) return;
+    setLoading("Synthesizing Skill Progress Report...");
+    try {
+      const metSkills = initialAnalysis.skills.filter(s => s.status === 'met').length;
+      const initialScore = Math.round((metSkills / initialAnalysis.skills.length) * 100);
+      const finalScore = Math.min(100, Math.round(initialScore + (progressFactor * (100 - initialScore))));
+      
+      const aiResponse = await generateReportAnalysis(
+        userName,
+        targetPosition,
+        initialAnalysis,
+        completedCount,
+        totalTasksCount,
+        progressPercent
+      );
+
+      const skillBreakdown: any[] = initialAnalysis.skills.map(s => {
+        const isMet = s.status === 'met';
+        const start = isMet ? 80 : 20;
+        const end = Math.min(100, Math.round(start + (progressFactor * 60)));
+        const insight = aiResponse.skillBreakdown?.find((aiS: any) => aiS.name === s.name)?.insight || "Improvement through roadmap dedication.";
+        return {
+          name: s.name,
+          beforeScore: start,
+          afterScore: end,
+          improvement: end - start,
+          insight: insight
+        };
+      });
+
+      const report: ProgressReportData = {
+        userName,
+        targetRole: targetPosition,
+        date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+        initialScore,
+        finalScore,
+        totalImprovement: finalScore - initialScore,
+        tasksCompleted: completedCount,
+        totalTasks: totalTasksCount,
+        projectsBuilt: initialAnalysis.project_suggestions.slice(0, 2),
+        consistencyRate: progressPercent >= 80 ? "High" : progressPercent >= 40 ? "Moderate" : "Developmental",
+        growthAnalysis: aiResponse.growthAnalysis || "Consistent growth across core domains.",
+        skillBreakdown,
+        keyAchievements: aiResponse.keyAchievements || ["Completed roadmap tasks", "Strategic alignment achieved"],
+        readinessAssessment: aiResponse.readinessAssessment || "Intermediate -> Ready",
+        finalRecommendation: aiResponse.finalRecommendation || "Pursue industry certification."
+      };
+
+      setReportData(report);
+      setShowReportPreview(true);
+    } catch (e) {
+      alert("Report generation failed.");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const downloadPDF = () => {
+    const element = document.getElementById('progress-report-content');
+    if (!element) return;
+    const opt = {
+      margin: 0,
+      filename: `${userName}_Catalyst_Progress_Report.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+    // @ts-ignore
+    html2pdf().set(opt).from(element).save();
+  };
+
   const getTaskIcon = (type: string) => {
     switch (type) {
       case 'documentation': return <Bookmark className="w-4 h-4" />;
@@ -213,6 +386,34 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col bg-[#0E1117] text-[#E6EDF3]">
       {loading && <LoadingOverlay message={loading} />}
+
+      {/* Progress Report Modal */}
+      {showReportPreview && reportData && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0E1117]/90 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#161B22] w-full max-w-4xl max-h-[90vh] rounded-3xl border border-[#30363D] shadow-2xl overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-[#30363D] flex justify-between items-center bg-[#1C2128]">
+              <div className="flex items-center space-x-3">
+                <Trophy className="w-6 h-6 text-indigo-500" />
+                <h2 className="text-xl font-black uppercase italic tracking-tighter">Report Preview</h2>
+              </div>
+              <div className="flex space-x-3">
+                <button onClick={downloadPDF} className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-2xl flex items-center space-x-2 font-bold text-sm transition-all shadow-lg shadow-indigo-600/20">
+                  <Download className="w-4 h-4" />
+                  <span>Download PDF</span>
+                </button>
+                <button onClick={() => setShowReportPreview(false)} className="p-2.5 hover:bg-[#30363D] rounded-2xl transition-colors">
+                  <X className="w-6 h-6 text-gray-400" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-8 bg-[#0E1117]">
+              <div className="mx-auto transform scale-90 sm:scale-100 origin-top">
+                <ReportTemplate data={reportData} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {step !== AppStep.ROADMAP && (
         <header className="py-8 flex flex-col items-center">
@@ -263,6 +464,21 @@ const App: React.FC = () => {
                   <p className="text-[9px] text-gray-500 mt-2 font-medium tracking-tight">Phase momentum tracking active.</p>
                 </div>
               </div>
+
+              {/* Progress Report Trigger */}
+              <button 
+                onClick={handleGenerateReport}
+                className="w-full bg-gradient-to-br from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white p-4 rounded-2xl flex items-center justify-between group transition-all shadow-lg shadow-indigo-600/10"
+              >
+                <div className="flex items-center space-x-3">
+                  <Award className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  <div className="text-left">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-indigo-100">Export Report</p>
+                    <p className="text-[8px] text-indigo-200">Synthesize career metrics</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 opacity-50" />
+              </button>
 
               {copilotAdvice && (
                 <div className="bg-indigo-600/10 border border-indigo-500/30 p-4 rounded-2xl relative group overflow-hidden">
